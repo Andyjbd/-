@@ -1,0 +1,80 @@
+import requests
+from bs4 import BeautifulSoup
+import smtplib
+from email.mime.text import MIMEText
+import os
+
+def get_data():
+    # 抓取 ThisIsWhyImBroke 热门页面
+    url = "https://www.thisiswhyimbroke.com/trending/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    res = requests.get(url, headers=headers)
+    soup = BeautifulSoup(res.text, 'html.parser')
+    
+    # 根据该网站目前的结构抓取产品
+    items = soup.select('.item-list')[:30] 
+    html_content = """
+    <html>
+    <head>
+        <style>
+            body { font-family: sans-serif; }
+            .product { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+            .price { color: #2ecc71; font-weight: bold; }
+            a { text-decoration: none; color: #3498db; font-size: 18px; }
+        </style>
+    </head>
+    <body>
+        <h1>ThisIsWhyImBroke 今日热门追踪</h1>
+    """
+    
+    count = 0
+    for item in items:
+        try:
+            title_el = item.select_one('h2 a')
+            if not title_el: continue
+            
+            title = title_el.text
+            link = title_el['href']
+            price = item.select_one('.price').text if item.select_one('.price') else "N/A"
+            
+            html_content += f"""
+            <div class="product">
+                <h3><a href="{link}">{title}</a></h3>
+                <p class="price">价格: {price}</p>
+            </div>
+            """
+            count += 1
+        except Exception as e:
+            print(f"解析出错: {e}")
+            continue
+            
+    html_content += f"<p>共整理了 {count} 个产品。</p></body></html>"
+    return html_content
+
+def send_mail(content):
+    sender = os.environ.get('EMAIL_USER')
+    password = os.environ.get('EMAIL_PASS')
+    
+    # --- 关键修改区 ---
+    receiver = "ayu_best@qq.com" 
+    smtp_server = "smtp.163.com" # 如果你用QQ邮箱，改为 smtp.qq.com
+    # ----------------
+    
+    msg = MIMEText(content, 'html', 'utf-8')
+    msg['Subject'] = "🚀 发现好物：ThisIsWhyImBroke 热门速递"
+    msg['From'] = sender
+    msg['To'] = receiver
+
+    try:
+        with smtplib.SMTP_SSL(smtp_server, 465) as server:
+            server.login(sender, password)
+            server.sendmail(sender, [receiver], msg.as_string())
+        print("邮件发送成功！")
+    except Exception as e:
+        print(f"邮件发送失败: {e}")
+
+if __name__ == "__main__":
+    data = get_data()
+    send_mail(data)
