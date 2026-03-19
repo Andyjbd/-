@@ -1,0 +1,22 @@
+name: Run Daily Scraper
+on:
+  schedule:
+    - cron: '0 1 * * *' # 每天北京时间上午9点运行 (UTC 1:00)
+  workflow_dispatch: # 允许你手动点击运行测试
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+      - name: Run Python script
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+        run: python main.py
